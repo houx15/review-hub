@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/plan.schema.json",
+  "title": "plan.json",
+  "description": "The review plan written by review-start and confirmed by the person before review-run starts.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "created_at",
+    "session_id",
+    "revision",
+    "status",
+    "artifact",
+    "classification",
+    "tier",
+    "stages",
+    "ground_truth",
+    "attention_budget",
+    "estimate",
+    "not_checked"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "id": {
+      "const": "plan"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "session_id": {
+      "$ref": "common.schema.json#/$defs/session_id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Bumped each time the plan is rewritten after the person edits it."
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "confirmed"
+      ],
+      "description": "review-run refuses to start unless confirmed."
+    },
+    "confirmed_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "title",
+        "snapshot_paths",
+        "hash",
+        "original_location"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "snapshot_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/rel_path"
+          },
+          "description": "Files under artifact/ that make up the reviewed output."
+        },
+        "hash": {
+          "$ref": "common.schema.json#/$defs/artifact_hash"
+        },
+        "original_location": {
+          "type": "string",
+          "description": "Where the original lives. Recorded for traceability; never edited by review skills."
+        }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "required": [
+        "types",
+        "rationale",
+        "confirmed_by_human"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/type_id"
+          },
+          "description": "First entry is the primary type. More than one means a mixed artifact; merged stages are marked in stages[].from_type."
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confirmed_by_human": {
+          "type": "boolean"
+        }
+      }
+    },
+    "tier": {
+      "$ref": "common.schema.json#/$defs/tier"
+    },
+    "user_role": {
+      "enum": [
+        "author",
+        "evaluator"
+      ],
+      "description": "author: the person's own work (or AI work for them); the AI revises a copy and leaves choices to the person. evaluator: someone else's finished work the person is judging (refereeing, deciding); the AI does not rewrite it, open choices become questions for its author, and the verdict is a referee's."
+    },
+    "revision_policy": {
+      "enum": [
+        "full",
+        "narrow",
+        "none"
+      ],
+      "description": "full: the AI may change anything it can justify. narrow: for text in the author's own voice (statements, essays, stories, pitches); the AI may delete, shorten, qualify or correct against sources, but never add claims in the author's voice. none: creative work and anything else the author must own entirely; the AI does not edit the text at all, only asks and suggests."
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "text",
+        "source"
+      ],
+      "additionalProperties": false,
+      "description": "What the author wants the work to express, captured before reviewing (types with ask_intent). The review judges whether the text achieves it.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": [
+            "author",
+            "inferred"
+          ],
+          "description": "author: the author said it; inferred: the AI read it from the text and the author has not confirmed it."
+        }
+      }
+    },
+    "focus": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What the person said to check especially this time."
+    },
+    "direction_check": {
+      "type": "object",
+      "description": "The one explicit 'are you sure about the direction?' question asked at plan time.",
+      "required": [
+        "question"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "question": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        }
+      }
+    },
+    "aspects": {
+      "type": "array",
+      "description": "Optional top-level grouping of stages, copied from the type's TYPE.md (e.g. the seven aspects of an academic report). Ordered.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ask": {
+            "type": "string",
+            "description": "The aspect as a plain question to the reader."
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Key criteria for this aspect: what a good artifact does here. Shown to the person in the plan and on the page."
+          },
+          "covers": {
+            "type": "string",
+            "description": "Which parts of this artifact the aspect looks at (sections, figures), written for this artifact."
+          },
+          "expert_questions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What a seasoned reviewer in this field asks about this aspect. The reviewer agents work from these."
+          },
+          "red_flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Typical ways this aspect goes wrong in this kind of work."
+          }
+        }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered upstream to downstream.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "verifiability",
+          "included",
+          "ai_checks",
+          "human"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/stage_id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "aspect": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Which aspect (plan.aspects[].id) this stage belongs to. Used to group stages for display."
+          },
+          "from_type": {
+            "$ref": "common.schema.json#/$defs/type_id",
+            "description": "Set only for mixed artifacts: which type's chain this stage came from."
+          },
+          "verifiability": {
+            "$ref": "common.schema.json#/$defs/verifiability"
+          },
+          "included": {
+            "type": "boolean"
+          },
+          "excluded_reason": {
+            "type": "string"
+          },
+          "ai_checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "what",
+                "method"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "what": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": "string"
+                },
+                "ground_truth_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "human": {
+            "type": "object",
+            "required": [
+              "involved",
+              "action"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "involved": {
+                "type": "boolean"
+              },
+              "action": {
+                "enum": [
+                  "none",
+                  "confirm",
+                  "choose",
+                  "answer",
+                  "predict"
+                ],
+                "description": "Cheapest interaction that fits the task (see the design's interaction table)."
+              },
+              "why": {
+                "type": "string"
+              }
+            }
+          },
+          "custom": {
+            "type": "boolean",
+            "description": "true: designed by the AI for this artifact, not in TYPE.md. Then criteria must say what failure looks like."
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "For custom stages: what failure looks like and what to check."
+          }
+        }
+      }
+    },
+    "ground_truth": {
+      "type": "array",
+      "description": "Sources of truth the review may consult. Copies live under the session folder; originals are never edited.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "available"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^G\\d{2,}$"
+          },
+          "kind": {
+            "enum": [
+              "data",
+              "code",
+              "log",
+              "stats",
+              "literature",
+              "notes",
+              "other"
+            ]
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "false when the plan expects it but it could not be found; checks depending on it go to not_checked."
+          }
+        },
+        "if": {
+          "properties": {
+            "available": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "location"
+          ]
+        }
+      }
+    },
+    "attention_budget": {
+      "type": "object",
+      "required": [
+        "open_questions_max",
+        "choices_max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "open_questions_max": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "choices_max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "estimate": {
+      "type": "object",
+      "description": "Effort targets. AI effort is rounds, reviewer agents and wall-clock time only; never tokens or money.",
+      "required": [
+        "human_minutes",
+        "reviewer_agents",
+        "max_rounds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "human_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reviewer_agents": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_rounds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "not_checked": {
+      "type": "array",
+      "description": "What this plan deliberately does not check, and why. Carried into certificate.md.",
+      "items": {
+        "type": "object",
+        "required": [
+          "what",
+          "why"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "what": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "confirmed"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "confirmed_at"
+    ]
+  }
+}

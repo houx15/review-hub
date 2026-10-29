@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/change.schema.json",
+  "title": "changes.jsonl record",
+  "description": "One edit the AI made to the artifact copy on its own, during the review-and-revise loop. Append-only. The original files are untouched until the person agrees to write back; baseline/ keeps the version the session started from.",
+  "type": "object",
+  "required": [
+    "id",
+    "round",
+    "summary",
+    "why",
+    "path",
+    "before",
+    "after",
+    "anchor"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/change_id"
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Review round whose findings this edit answers."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One line, in Chinese: what changed."
+    },
+    "why": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why: the problem it fixes, in plain words."
+    },
+    "finding_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/finding_id"
+      }
+    },
+    "decision_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/decision_id"
+      }
+    },
+    "message_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/message_id"
+      },
+      "description": "Discussion messages that led to this edit."
+    },
+    "path": {
+      "type": "string",
+      "description": "Artifact file, relative to the session folder (artifact/...)."
+    },
+    "before": {
+      "type": "string",
+      "description": "Text before the edit (empty for a pure insertion)."
+    },
+    "after": {
+      "type": "string",
+      "description": "Text after the edit (empty for a pure deletion)."
+    },
+    "anchor": {
+      "$ref": "common.schema.json#/$defs/text_quote_anchor",
+      "description": "Where the edit sits in the revised copy; for a deletion, the text just before it."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/evidence"
+      },
+      "description": "For edits that change numbers or facts: where the new value comes from (re-run command, output file)."
+    },
+    "project_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Copies of project code or data changed under work/ to produce this edit (never the originals)."
+    },
+    "status": {
+      "enum": [
+        "applied",
+        "reverted"
+      ],
+      "description": "reverted: undone after the person asked (confirm=wrong) or a later round found it wrong."
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "common.schema.json#/$defs/record_base"
+    }
+  ]
+}

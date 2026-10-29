@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/map.schema.json",
+  "title": "map.json",
+  "description": "Decision-point graph and claim list for one artifact version. Rewritten by review-run each round.",
+  "type": "object",
+  "required": [
+    "schema_version", "id", "created_at", "session_id", "round",
+    "artifact_hash", "summary", "decisions", "claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "id": { "const": "map" },
+    "created_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "session_id": { "$ref": "common.schema.json#/$defs/session_id" },
+    "round": { "type": "integer", "minimum": 1 },
+    "artifact_hash": { "$ref": "common.schema.json#/$defs/artifact_hash" },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-sentence statement of the artifact's main conclusion, for orientation."
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claim" }
+    },
+    "overview": { "$ref": "#/$defs/overview" },
+    "readiness": { "$ref": "#/$defs/readiness" },
+    "leads": {
+      "type": "array",
+      "description": "Detective leads: anomalies, untested implications, unexcluded rival explanations, places where a model stands in for design, parts that do not cohere. Shown to the person as highlighted questions; never fixed by the AI.",
+      "items": { "$ref": "#/$defs/lead" }
+    },
+    "assessments": {
+      "type": "array",
+      "description": "The reviewer's judgement of each aspect of the artifact: how good it is, why, and what is worth the person's thought. One entry per aspect in plan.aspects.",
+      "items": { "$ref": "#/$defs/assessment" }
+    }
+  },
+  "$defs": {
+    "readiness": {
+      "type": "object",
+      "description": "The AI reviewer's verdict before the person reads: is the work ready for their review, or should its author (often another agent) do more first?",
+      "required": ["verdict", "text", "tasks"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": { "enum": ["ready", "revise_first"] },
+        "text": { "type": "string", "minLength": 1, "description": "Two or three sentences: why, in plain academic prose." },
+        "tasks": {
+          "type": "array",
+          "description": "What the author should do: before the person's review when revise_first; when ready (or when the author cannot be reached), what they should still improve.",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "why"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^T\\d+$" },
+              "title": { "type": "string", "minLength": 1 },
+              "why": { "type": "string", "minLength": 1 },
+              "refs": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "sent_to": { "type": "string", "description": "Where the task list was sent, if it was (an agent or session name)." },
+        "sent_at": { "$ref": "common.schema.json#/$defs/timestamp" }
+      }
+    },
+    "overview": {
+      "type": "object",
+      "description": "The review's top layer: the work's architecture, in the parts its type defines (TYPE.md `overview`), and the questions that decide whether it stands. In-text notes deal with details only.",
+      "required": ["parts", "key_questions"],
+      "additionalProperties": false,
+      "properties": {
+        "parts": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "required": ["name", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "description": "The part's heading, from the type (e.g. 研究叙事, 产品主张)." },
+              "text": { "type": "string", "minLength": 1, "description": "A short paragraph in plain academic prose (skills/WRITING.md)." },
+              "refs": { "type": "array", "items": { "type": "string" }, "description": "Ids of in-text notes that bear on this part." }
+            }
+          }
+        },
+        "path": {
+          "type": "object",
+          "description": "Plans only (TYPE.md `work: plan`): the suggested way forward — what to do first, what to cut, the cheapest test — as ordered steps. Such advice lives here once, not inside problem notes.",
+          "required": ["text", "steps"],
+          "additionalProperties": false,
+          "properties": {
+            "text": { "type": "string", "minLength": 1, "description": "One or two sentences: the idea behind the suggested order." },
+            "steps": {
+              "type": "array", "minItems": 1, "maxItems": 7,
+              "items": {
+                "type": "object",
+                "required": ["title", "why"],
+                "additionalProperties": false,
+                "properties": {
+                  "title": { "type": "string", "minLength": 1 },
+                  "why": { "type": "string", "minLength": 1 },
+                  "refs": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "key_questions": {
+          "type": "array",
+          "maxItems": 6,
+          "description": "The few questions that decide whether the work stands; the only things the author must weigh.",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "body"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^Q\\d+$" },
+              "title": { "type": "string", "minLength": 1 },
+              "body": { "type": "string", "minLength": 1 },
+              "refs": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "lead": {
+      "type": "object",
+      "required": ["id", "kind", "title", "observation", "threat", "questions", "evidence", "anchor"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^L\\d{2,}$" },
+        "aspect": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "kind": {
+          "enum": ["anomaly", "untested_implication", "rival_explanation", "model_for_design", "incoherence",
+                   "untested_assumption", "open_choice", "missing_piece"],
+          "description": "Which kinds a type uses is set by TYPE.md `lead_kinds`. For plans: untested_assumption: the plan rests on something not yet checked. open_choice: a choice the plan has not made but must. missing_piece: something the plan needs and has not thought about. For research: anomaly: a result that does not fit the main claim. untested_implication: something the claim predicts that was never checked. rival_explanation: another account of the main result not yet ruled out. model_for_design: a model carries a conclusion that the design itself does not establish. incoherence: parts of the argument that do not fit together."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "observation": { "type": "string", "minLength": 1, "description": "What the artifact or its materials show, plainly." },
+        "threat": { "type": "string", "minLength": 1, "description": "Why this could weaken or overturn the main claim if it is what it looks like." },
+        "questions": {
+          "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 },
+          "description": "Questions for the person: what to look at, what evidence would settle it. No answer is assumed."
+        },
+        "evidence": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/evidence" } },
+        "anchor": { "$ref": "common.schema.json#/$defs/text_quote_anchor" }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "required": ["aspect", "rating", "verdict", "reasons"],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "rating": {
+          "enum": ["strong", "adequate", "weak", "clear", "partial", "open"],
+          "description": "Finished work (TYPE.md `work: finished`, the default) — strong: an expert would accept it as is. adequate: sound, with fixable problems. weak: a problem here undermines the work. Plans (`work: plan`) — clear: thought through. partial: has a direction, not yet worked out. open: not yet addressed."
+        },
+        "verdict": { "type": "string", "minLength": 1, "description": "One plain sentence: the judgement." },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Why, each tied to the artifact; strengths as well as problems."
+        },
+        "finding_ids": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/finding_id" } },
+        "questions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Important questions this aspect raises that the person should think about; no answer is assumed."
+        }
+      }
+    },
+    "decision": {
+      "description": "A decision point in QOC-E form: Question, Options, Criteria, Evidence.",
+      "type": "object",
+      "required": [
+        "id", "stage", "title", "question", "options", "criteria", "evidence",
+        "upstream", "downstream", "verifiability", "load_bearing", "status", "anchor", "human_action"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/decision_id" },
+        "stage": { "$ref": "common.schema.json#/$defs/stage_id" },
+        "title": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Exactly one option has chosen=true (checked by the validator, not expressible cleanly here).",
+          "items": { "$ref": "#/$defs/option" }
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^K\\d+$" },
+              "text": { "type": "string", "minLength": 1 },
+              "stated_in_artifact": {
+                "type": "boolean",
+                "description": "false when the criterion is inferred by the AI rather than written by the author."
+              }
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/evidence" }
+        },
+        "upstream": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/decision_id" },
+          "description": "Decisions this one depends on. If one of them changes, this one becomes invalidated."
+        },
+        "downstream": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/decision_id" },
+          "description": "Inverse of upstream; the validator checks the two agree."
+        },
+        "verifiability": { "$ref": "common.schema.json#/$defs/verifiability" },
+        "load_bearing": {
+          "type": "object",
+          "required": ["score", "basis", "rationale"],
+          "additionalProperties": false,
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "0 none; 1 local wording; 2 changes a specific result; 3 changes the main conclusion."
+            },
+            "basis": {
+              "enum": ["sensitivity", "dependency", "judgement"],
+              "description": "sensitivity: an alternative was actually re-run. dependency: many downstream nodes. judgement: AI estimate only."
+            },
+            "rationale": { "type": "string", "minLength": 1 }
+          }
+        },
+        "status": {
+          "enum": ["ai_default", "awaiting_human", "confirmed", "changed", "invalidated"],
+          "description": "ai_default: not load-bearing, AI keeps the author's choice and lists it at sign-off. invalidated: an upstream decision changed after this was confirmed."
+        },
+        "human_action": {
+          "enum": ["none", "confirm", "choose", "answer", "predict"]
+        },
+        "prompt_to_human": {
+          "type": "string",
+          "description": "The exact question shown to the person when human_action is answer or predict."
+        },
+        "challenge": {
+          "type": "string",
+          "description": "Optional short counter-argument from the AI, shown as an ignorable margin note."
+        },
+        "anchor": { "$ref": "common.schema.json#/$defs/text_quote_anchor" }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": ["id", "label", "chosen"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^O\\d+$" },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "chosen": { "type": "boolean" },
+        "sensitivity": {
+          "type": "object",
+          "description": "What happens to the conclusion if this option is used instead. Only present when actually computed or reasoned with evidence.",
+          "required": ["effect", "computed"],
+          "additionalProperties": false,
+          "properties": {
+            "effect": { "type": "string", "minLength": 1 },
+            "computed": {
+              "type": "boolean",
+              "description": "true only if the alternative was actually re-run; evidence must then include the command."
+            },
+            "evidence": {
+              "type": "array",
+              "items": { "$ref": "common.schema.json#/$defs/evidence" }
+            }
+          }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "stage", "text", "anchor", "source_type", "sources", "check_status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/claim_id" },
+        "stage": { "$ref": "common.schema.json#/$defs/stage_id" },
+        "text": { "type": "string", "minLength": 1 },
+        "anchor": { "$ref": "common.schema.json#/$defs/text_quote_anchor" },
+        "source_type": {
+          "enum": ["computed", "literature", "user_stated", "model_inference", "unsourced"],
+          "description": "computed: from data. literature: cited work. user_stated: the person said it. model_inference: reasoning by the model. unsourced: no source found; listed separately."
+        },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/evidence" }
+        },
+        "check_status": {
+          "enum": ["verified", "has_finding", "unchecked"],
+          "description": "verified needs at least one source; 'checked, no problem' is shown explicitly."
+        },
+        "decision_ids": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/decision_id" }
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/finding_id" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "check_status": { "const": "verified" } } },
+          "then": { "properties": { "sources": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "source_type": { "const": "unsourced" } } },
+          "then": { "properties": { "sources": { "maxItems": 0 } } }
+        }
+      ]
+    }
+  }
+}

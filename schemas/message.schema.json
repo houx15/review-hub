@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/message.schema.json",
+  "title": "threads.jsonl record",
+  "description": "One message in a discussion between the person and the AI, append-only. The page never calls a model: the person's messages are written by the UI, and the agent session that opened the UI replies with RH reply.",
+  "type": "object",
+  "required": [
+    "id",
+    "author",
+    "text"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/message_id"
+    },
+    "author": {
+      "enum": [
+        "human",
+        "ai"
+      ]
+    },
+    "target": {
+      "type": "object",
+      "description": "What the thread is about. Absent: the artifact as a whole.",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "finding",
+            "decision",
+            "claim",
+            "change",
+            "lead"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "reply_to": {
+      "$ref": "common.schema.json#/$defs/message_id",
+      "description": "For ai messages: the human message answered."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "enum": [
+        "ui",
+        "chat"
+      ]
+    },
+    "artifact_hash": {
+      "$ref": "common.schema.json#/$defs/artifact_hash"
+    },
+    "change_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/change_id"
+      },
+      "description": "For ai messages: edits made as a result of the discussion."
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "common.schema.json#/$defs/record_base"
+    }
+  ]
+}

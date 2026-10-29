@@ -1,0 +1,411 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/feedback.schema.json",
+  "title": "feedback.jsonl record",
+  "description": "One human action per line, append-only. Written by the UI (later) or by the agent transcribing what the person said in chat. The latest record per (target, kind) wins.",
+  "type": "object",
+  "required": [
+    "id",
+    "artifact_hash",
+    "kind",
+    "target",
+    "source"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/feedback_id"
+    },
+    "artifact_hash": {
+      "$ref": "common.schema.json#/$defs/artifact_hash",
+      "description": "Artifact version the person was looking at."
+    },
+    "kind": {
+      "enum": [
+        "reaction",
+        "confirm",
+        "choice",
+        "answer",
+        "prediction",
+        "plan_confirm",
+        "signoff",
+        "suggestion",
+        "missed"
+      ],
+      "description": " missed: something the person found that the review should have raised."
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "finding",
+            "decision",
+            "claim",
+            "change",
+            "plan",
+            "session",
+            "lead"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "anchor": {
+      "$ref": "common.schema.json#/$defs/text_quote_anchor"
+    },
+    "source": {
+      "enum": [
+        "ui",
+        "chat",
+        "voice"
+      ],
+      "description": "voice: dictated, transcribed by the AI; the transcript goes in note."
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional free text on any kind."
+    },
+    "reaction": {
+      "enum": [
+        "fixed",
+        "ai_wrong",
+        "intentional",
+        "doesnt_matter",
+        "class_of_problem"
+      ],
+      "description": "fixed: accept, it must change. ai_wrong: false finding. intentional: author meant it. doesnt_matter: true but not worth changing. class_of_problem: accept, and find all similar instances."
+    },
+    "fix_by": {
+      "enum": [
+        "ai",
+        "human"
+      ],
+      "description": "For reaction=fixed: who makes the change. ai means review-apply will do it."
+    },
+    "value": {
+      "enum": [
+        "correct",
+        "wrong"
+      ],
+      "description": "For kind=confirm: one-click spot-check of a verified claim or V decision. On a change (an edit the AI made on its own): correct = keep it, wrong = undo it."
+    },
+    "option_id": {
+      "type": "string",
+      "pattern": "^O\\d+$",
+      "description": "For kind=choice."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "For kind=answer, prediction and suggestion."
+    },
+    "plan_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "For kind=plan_confirm."
+    },
+    "signoff": {
+      "type": "object",
+      "description": "For kind=signoff. Ties the sign-off to artifact_hash; any later change to the artifact voids it.",
+      "required": [
+        "outcome",
+        "acknowledged"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "enum": [
+            "deliver",
+            "another_round"
+          ]
+        },
+        "acknowledged": {
+          "type": "array",
+          "description": "Ids of open S2/S3 findings and ai_default decisions the person saw at sign-off.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "quality_score": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Self-rated quality of the deliverable at sign-off."
+        }
+      }
+    },
+    "scope": {
+      "enum": [
+        "this_review",
+        "this_type",
+        "general"
+      ],
+      "description": "For kind=suggestion: how far the advice should reach. this_review: only this session. this_type: every review of this artifact type. general: every review. review-learn turns this_type and general suggestions into rule proposals."
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "common.schema.json#/$defs/record_base"
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "reaction",
+              "confirm",
+              "choice",
+              "answer",
+              "prediction"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "anchor"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "reaction"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "reaction"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "finding",
+                  "decision"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "confirm"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "claim",
+                  "decision",
+                  "change"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "choice"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "option_id"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "const": "decision"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "answer"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "decision",
+                  "lead"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "prediction"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "const": "decision"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "plan_confirm"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "plan_revision"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "const": "plan"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "signoff"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "signoff"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "const": "session"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "suggestion"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "text",
+          "scope"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "session",
+                  "finding",
+                  "decision",
+                  "change",
+                  "lead"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "missed"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "target": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "session",
+                  "finding",
+                  "lead",
+                  "decision",
+                  "claim",
+                  "change"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

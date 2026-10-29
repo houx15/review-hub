@@ -1,0 +1,200 @@
+{
+  "schema_version": "0.1",
+  "id": "map",
+  "created_at": "2026-10-21T14:31:05+08:00",
+  "session_id": "2026-10-21-llm-salary-gap",
+  "round": 1,
+  "artifact_hash": "sha256:3f9a1c0e8b7d6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a19",
+  "summary": "在 1,200 份仅性别不同的配对简历上，模型给女性的起薪平均低 4.1%。",
+  "decisions": [
+    {
+      "id": "D01",
+      "stage": "measurement",
+      "title": "拒答记录的编码",
+      "question": "模型拒绝给出起薪时，这条记录怎么处理？",
+      "options": [
+        {
+          "id": "O1",
+          "label": "视为缺失，从回归中剔除",
+          "chosen": true
+        },
+        {
+          "id": "O2",
+          "label": "单独作为一个结果变量（是否拒答）分析",
+          "chosen": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "K1",
+          "text": "不让拒答混入起薪数值",
+          "stated_in_artifact": true
+        },
+        {
+          "id": "K2",
+          "text": "拒答本身是否也有性别差异",
+          "stated_in_artifact": false
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "file",
+          "path": "~/Codings/llm-hiring-audit/src/parse_salary.py",
+          "line_start": 41,
+          "line_end": 44,
+          "excerpt": "m = re.search(r\"\\d[\\d,]*\", text)\nreturn int(m.group().replace(\",\", \"\")) if m else None"
+        }
+      ],
+      "upstream": [],
+      "downstream": [
+        "D02"
+      ],
+      "verifiability": "V",
+      "load_bearing": {
+        "score": 3,
+        "basis": "dependency",
+        "rationale": "所有起薪数字都经过这一步；编码错了，主结论的样本就是错的。"
+      },
+      "status": "awaiting_human",
+      "human_action": "confirm",
+      "anchor": {
+        "path": "artifact/report.md",
+        "exact": "拒绝作答的记录视为缺失",
+        "prefix": "薪资结果取模型给出的起薪。",
+        "suffix": "，不进入回归。",
+        "line_hint": 37
+      }
+    },
+    {
+      "id": "D02",
+      "stage": "variable_selection",
+      "title": "固定效应设定",
+      "question": "回归里控制哪一层的职业固定效应？",
+      "options": [
+        {
+          "id": "O1",
+          "label": "职业固定效应（48 个职业）",
+          "chosen": true,
+          "sensitivity": {
+            "effect": "当前结论：-4.1%（p<0.001）",
+            "computed": true,
+            "evidence": [
+              {
+                "kind": "file",
+                "path": "~/Codings/llm-hiring-audit/out/main_regression.txt",
+                "line_start": 18,
+                "excerpt": "female  -0.0412  (0.0059)  p=0.000"
+              }
+            ]
+          }
+        },
+        {
+          "id": "O2",
+          "label": "职业大类固定效应（9 类）",
+          "chosen": false,
+          "sensitivity": {
+            "effect": "-3.9%（p<0.001），结论不变",
+            "computed": true,
+            "evidence": [
+              {
+                "kind": "command",
+                "command": "python src/run_regression.py --fe occ_major",
+                "cwd": "sessions/2026-10-21-llm-salary-gap/work",
+                "exit_code": 0,
+                "output_excerpt": "female  -0.0398  (0.0061)  p=0.000"
+              }
+            ]
+          }
+        },
+        {
+          "id": "O3",
+          "label": "不加",
+          "chosen": false,
+          "sensitivity": {
+            "effect": "-1.7%（p=0.08），结论变弱",
+            "computed": true,
+            "evidence": [
+              {
+                "kind": "command",
+                "command": "python src/run_regression.py --fe none",
+                "cwd": "sessions/2026-10-21-llm-salary-gap/work",
+                "exit_code": 0,
+                "output_excerpt": "female  -0.0171  (0.0098)  p=0.081"
+              }
+            ]
+          }
+        }
+      ],
+      "criteria": [
+        {
+          "id": "K1",
+          "text": "比较同一职业内的配对简历",
+          "stated_in_artifact": true
+        }
+      ],
+      "evidence": [],
+      "upstream": [
+        "D01"
+      ],
+      "downstream": [],
+      "verifiability": "J+V",
+      "load_bearing": {
+        "score": 3,
+        "basis": "sensitivity",
+        "rationale": "不加固定效应时系数减半且不显著。"
+      },
+      "status": "awaiting_human",
+      "human_action": "choose",
+      "challenge": "不加固定效应时差异变小，是否说明差异集中在少数职业？",
+      "anchor": {
+        "path": "artifact/report.md",
+        "exact": "控制职业固定效应",
+        "prefix": "我们在回归中",
+        "suffix": "，标准误按简历对聚类。",
+        "line_hint": 52
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "C01",
+      "stage": "interpretation",
+      "text": "模型给女性的起薪平均低 4.1%",
+      "anchor": {
+        "path": "artifact/report.md",
+        "exact": "平均低 4.1%",
+        "prefix": "模型给女性的起薪",
+        "suffix": "（p<0.001）",
+        "line_hint": 61
+      },
+      "source_type": "computed",
+      "sources": [
+        {
+          "kind": "file",
+          "path": "~/Codings/llm-hiring-audit/out/main_regression.txt",
+          "line_start": 18,
+          "excerpt": "female  -0.0412  (0.0059)  p=0.000"
+        }
+      ],
+      "check_status": "verified",
+      "decision_ids": [
+        "D02"
+      ]
+    },
+    {
+      "id": "C02",
+      "stage": "conclusion",
+      "text": "这一差异与劳动力市场上观察到的性别工资差距方向一致",
+      "anchor": {
+        "path": "artifact/report.md",
+        "exact": "与劳动力市场上观察到的性别工资差距方向一致",
+        "prefix": "这一差异",
+        "suffix": "。",
+        "line_hint": 88
+      },
+      "source_type": "unsourced",
+      "sources": [],
+      "check_status": "unchecked"
+    }
+  ]
+}

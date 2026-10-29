@@ -1,0 +1,208 @@
+{
+  "schema_version": "0.1",
+  "id": "plan",
+  "created_at": "2026-10-21T14:02:11+08:00",
+  "session_id": "2026-10-21-llm-salary-gap",
+  "revision": 2,
+  "status": "confirmed",
+  "confirmed_at": "2026-10-21T14:06:40+08:00",
+  "artifact": {
+    "title": "大模型给出的起薪是否存在性别差异：简历审计实验报告",
+    "snapshot_paths": [
+      "artifact/report.md"
+    ],
+    "hash": "sha256:3f9a1c0e8b7d6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a19",
+    "original_location": "~/Codings/llm-hiring-audit/reports/report.md"
+  },
+  "classification": {
+    "types": [
+      "research-report"
+    ],
+    "rationale": "有数据、回归结果和基于结果的结论，属于科研报告；没有未来研究安排，不是研究计划。",
+    "confirmed_by_human": true
+  },
+  "tier": "standard",
+  "focus": [
+    "拒答记录的处理",
+    "固定效应设定是否影响结论"
+  ],
+  "direction_check": {
+    "question": "这份报告的主问题是\"模型给的起薪有没有性别差异\"，不是\"差异来自哪里\"。方向你确定吗？",
+    "answer": "确定，机制留到下一篇。"
+  },
+  "aspects": [
+    {
+      "id": "question",
+      "name": "核心问题",
+      "ask": "这项研究到底要回答什么问题？"
+    },
+    {
+      "id": "situating",
+      "name": "研究定位",
+      "ask": "这个问题放在已有研究里是什么位置，意义在哪？"
+    },
+    {
+      "id": "method_fit",
+      "name": "方法是否对题",
+      "ask": "用的方法真的回答了这个问题吗？"
+    },
+    {
+      "id": "implementation",
+      "name": "实现与测量",
+      "ask": "测量和方法做得对不对、好不好、稳不稳？"
+    },
+    {
+      "id": "presentation",
+      "name": "结果呈现",
+      "ask": "结果讲清楚了吗，重点突出了吗？"
+    },
+    {
+      "id": "reading",
+      "name": "给读者的解读",
+      "ask": "读者能从数字正确读出意思吗？"
+    },
+    {
+      "id": "framework",
+      "name": "整体框架",
+      "ask": "各部分连成一个完整、自洽的论述了吗？"
+    }
+  ],
+  "stages": [
+    {
+      "id": "measurement",
+      "name": "测量怎么做的",
+      "aspect": "implementation",
+      "verifiability": "V",
+      "included": true,
+      "ai_checks": [
+        {
+          "what": "起薪如何从模型回复中解析出来，拒答如何编码",
+          "method": "读解析代码，在原始回复中抽样核对解析结果",
+          "ground_truth_ids": [
+            "G01",
+            "G02"
+          ]
+        }
+      ],
+      "human": {
+        "involved": false,
+        "action": "none"
+      }
+    },
+    {
+      "id": "variable_selection",
+      "name": "控制哪些变量",
+      "aspect": "implementation",
+      "verifiability": "J+V",
+      "included": true,
+      "ai_checks": [
+        {
+          "what": "固定效应换成职业大类或不加时，性别系数变多少",
+          "method": "改设定重跑回归脚本",
+          "ground_truth_ids": [
+            "G02",
+            "G03"
+          ]
+        }
+      ],
+      "human": {
+        "involved": true,
+        "action": "choose",
+        "why": "选项可以列举并算出敏感度，由你选"
+      }
+    },
+    {
+      "id": "interpretation",
+      "name": "数字写得对不对",
+      "aspect": "reading",
+      "verifiability": "V",
+      "included": true,
+      "ai_checks": [
+        {
+          "what": "正文中的系数、百分比和样本量与 stats 输出一致",
+          "method": "逐个数字对照 stats 文件",
+          "ground_truth_ids": [
+            "G03"
+          ]
+        }
+      ],
+      "human": {
+        "involved": false,
+        "action": "none"
+      }
+    },
+    {
+      "id": "conclusion",
+      "name": "结论有没有超出结果",
+      "aspect": "framework",
+      "verifiability": "J+V",
+      "included": true,
+      "ai_checks": [
+        {
+          "what": "结论的强度是否超出结果",
+          "method": "对照数字解释环节的核对结果"
+        }
+      ],
+      "human": {
+        "involved": true,
+        "action": "predict",
+        "why": "承重点：先写下你预期的效应方向和大小，再看结果"
+      }
+    },
+    {
+      "id": "literature",
+      "name": "引用是否属实",
+      "aspect": "situating",
+      "verifiability": "V",
+      "included": false,
+      "excluded_reason": "标准档，本次你指定不查文献",
+      "ai_checks": [],
+      "human": {
+        "involved": false,
+        "action": "none"
+      }
+    }
+  ],
+  "ground_truth": [
+    {
+      "id": "G01",
+      "kind": "data",
+      "location": "~/Codings/llm-hiring-audit/data/responses.jsonl",
+      "description": "模型原始回复，每份简历一行",
+      "available": true
+    },
+    {
+      "id": "G02",
+      "kind": "code",
+      "location": "~/Codings/llm-hiring-audit/src/parse_salary.py",
+      "description": "起薪解析与清洗",
+      "available": true
+    },
+    {
+      "id": "G03",
+      "kind": "stats",
+      "location": "~/Codings/llm-hiring-audit/out/main_regression.txt",
+      "description": "主回归输出",
+      "available": true
+    }
+  ],
+  "attention_budget": {
+    "open_questions_max": 3,
+    "choices_max": 10
+  },
+  "estimate": {
+    "human_minutes": 20,
+    "reviewer_agents": 4,
+    "max_rounds": 3
+  },
+  "not_checked": [
+    {
+      "what": "文献引用是否准确",
+      "why": "你在计划确认时把文献环节排除了"
+    },
+    {
+      "what": "可视化",
+      "why": "报告目前没有图"
+    }
+  ]
+}

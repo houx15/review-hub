@@ -1,0 +1,7 @@
+Paired-resume audit: within-pair log salary gap (female - male)
+responses: 120
+complete pairs: 60
+mean log gap: -0.2857
+se: 0.1837
+t: -1.56
+median log gap: -0.0494

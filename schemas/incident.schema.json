@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/incident.schema.json",
+  "title": "ledger/incidents.jsonl record",
+  "description": "An escape: a problem found after sign-off. session_id is the session that should have caught it. Each incident becomes a replay eval case.",
+  "type": "object",
+  "required": [
+    "id", "artifact_hash", "type", "stage", "severity", "description",
+    "evidence", "discovered", "should_have_caught_at"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/incident_id" },
+    "artifact_hash": {
+      "$ref": "common.schema.json#/$defs/artifact_hash",
+      "description": "The signed-off version that contained the problem."
+    },
+    "type": { "$ref": "common.schema.json#/$defs/type_id" },
+    "stage": { "$ref": "common.schema.json#/$defs/stage_id" },
+    "severity": { "$ref": "common.schema.json#/$defs/severity" },
+    "description": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "common.schema.json#/$defs/evidence" }
+    },
+    "anchor": { "$ref": "common.schema.json#/$defs/text_quote_anchor" },
+    "discovered": {
+      "type": "object",
+      "required": ["at", "by"],
+      "additionalProperties": false,
+      "properties": {
+        "at": { "$ref": "common.schema.json#/$defs/timestamp" },
+        "by": { "enum": ["self", "collaborator", "advisor", "reviewer", "reader", "ai"] },
+        "how": { "type": "string" }
+      }
+    },
+    "should_have_caught_at": {
+      "type": "object",
+      "required": ["step", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "step": {
+          "enum": ["plan", "decompose", "find", "verify", "sensitivity", "human_review", "out_of_scope"],
+          "description": "Pipeline step where it should have been caught. out_of_scope: the plan listed it under not_checked."
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "related_findings": {
+      "type": "array",
+      "description": "Findings that touched this problem but were closed, e.g. marked ai_wrong.",
+      "items": { "$ref": "common.schema.json#/$defs/finding_id" }
+    },
+    "eval_case": {
+      "$ref": "common.schema.json#/$defs/rel_path",
+      "description": "Folder under ledger/eval/ holding the frozen replay case, once created."
+    }
+  },
+  "allOf": [{ "$ref": "common.schema.json#/$defs/record_base" }]
+}

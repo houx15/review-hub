@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/metrics.schema.json",
+  "title": "metrics.json",
+  "description": "Per-session self-experiment measurements. Rewritten in place; derived counts can always be recomputed from the other session files. AI effort is rounds, reviewer agents and wall-clock time; never tokens or money.",
+  "type": "object",
+  "required": ["schema_version", "id", "created_at", "updated_at", "session_id", "type", "tier", "ai", "findings", "feedback_count"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "id": { "const": "metrics" },
+    "created_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "updated_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "session_id": { "$ref": "common.schema.json#/$defs/session_id" },
+    "type": { "$ref": "common.schema.json#/$defs/type_id" },
+    "tier": { "$ref": "common.schema.json#/$defs/tier" },
+    "arm": {
+      "enum": ["full", "usual"],
+      "description": "n-of-1 randomisation arm, if the session takes part."
+    },
+    "ai": {
+      "type": "object",
+      "required": ["rounds"],
+      "additionalProperties": false,
+      "properties": {
+        "rounds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["round", "started_at", "ended_at", "reviewer_agents", "candidates", "kept", "dropped_no_evidence", "dropped_by_verifier"],
+            "additionalProperties": false,
+            "properties": {
+              "round": { "type": "integer", "minimum": 1 },
+              "started_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+              "ended_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+              "reviewer_agents": { "type": "integer", "minimum": 0 },
+              "candidates": { "type": "integer", "minimum": 0 },
+              "kept": { "type": "integer", "minimum": 0 },
+              "dropped_no_evidence": { "type": "integer", "minimum": 0 },
+              "dropped_by_verifier": { "type": "integer", "minimum": 0 },
+              "dropped_duplicate": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "human": {
+      "type": "object",
+      "description": "Absent until measured. In Phase 1 (no UI) minutes are self-reported.",
+      "additionalProperties": false,
+      "properties": {
+        "minutes": { "type": "number", "minimum": 0 },
+        "measured_by": { "enum": ["ui_timer", "self_report"] },
+        "by_stage_minutes": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "required": ["by_severity", "by_reaction"],
+      "additionalProperties": false,
+      "properties": {
+        "by_severity": {
+          "type": "object",
+          "required": ["S1", "S2", "S3"],
+          "additionalProperties": false,
+          "properties": {
+            "S1": { "type": "integer", "minimum": 0 },
+            "S2": { "type": "integer", "minimum": 0 },
+            "S3": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "by_reaction": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fixed": { "type": "integer", "minimum": 0 },
+            "ai_wrong": { "type": "integer", "minimum": 0 },
+            "intentional": { "type": "integer", "minimum": 0 },
+            "doesnt_matter": { "type": "integer", "minimum": 0 },
+            "class_of_problem": { "type": "integer", "minimum": 0 },
+            "no_response": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "precision": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "1 - ai_wrong / responded findings. null until at least one response."
+        }
+      }
+    },
+    "feedback_count": { "type": "integer", "minimum": 0 },
+    "predictions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decision_id", "predicted", "actual", "match"],
+        "additionalProperties": false,
+        "properties": {
+          "decision_id": { "$ref": "common.schema.json#/$defs/decision_id" },
+          "predicted": { "type": "string" },
+          "actual": { "type": "string" },
+          "match": { "enum": ["yes", "partly", "no"] }
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "at_signoff": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "after_one_week": { "type": "integer", "minimum": 1, "maximum": 5 }
+      }
+    }
+  }
+}

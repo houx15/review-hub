@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://review-hub.invalid/schemas/finding.schema.json",
+  "title": "findings.jsonl record",
+  "description": "One verified finding per line. Append-only: a later line with the same id replaces the earlier one (full snapshot, higher rev). Candidates that fail verification are not written here; they are only counted in metrics.json.",
+  "type": "object",
+  "required": [
+    "id",
+    "rev",
+    "round",
+    "artifact_hash",
+    "severity",
+    "stage",
+    "title",
+    "detail",
+    "evidence",
+    "anchor",
+    "origin",
+    "fingerprint",
+    "verification",
+    "status"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/finding_id"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Round in which the finding was first raised."
+    },
+    "artifact_hash": {
+      "$ref": "common.schema.json#/$defs/artifact_hash"
+    },
+    "severity": {
+      "$ref": "common.schema.json#/$defs/severity"
+    },
+    "stage": {
+      "$ref": "common.schema.json#/$defs/stage_id"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "detail": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What is wrong and why it matters, in two or three sentences."
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "common.schema.json#/$defs/evidence"
+      }
+    },
+    "anchor": {
+      "$ref": "common.schema.json#/$defs/text_quote_anchor"
+    },
+    "origin": {
+      "enum": [
+        "introduced",
+        "source_material",
+        "inherited"
+      ],
+      "description": "introduced: made in this round of work. source_material: already in the data or input material. inherited: follows from an upstream decision."
+    },
+    "origin_decision": {
+      "$ref": "common.schema.json#/$defs/decision_id",
+      "description": "When origin is inherited: the upstream decision it follows from. Either this or caused_by is required."
+    },
+    "decision_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/decision_id"
+      }
+    },
+    "claim_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/claim_id"
+      }
+    },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable key (stage + anchor exact + problem kind) used so the same finding is never raised twice across rounds."
+    },
+    "rule_ref": {
+      "type": "string",
+      "description": "Rule or check that produced it, e.g. 'research-report/rules.md#R07' or 'checks/refusal_coding.py'."
+    },
+    "class_of": {
+      "$ref": "common.schema.json#/$defs/feedback_id",
+      "description": "Set when this finding is an instance found after the person marked a finding as 'a class of problem'."
+    },
+    "suggested_fix": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replacement": {
+          "type": "string",
+          "description": "Proposed replacement for anchor.exact, if the fix is a text edit."
+        },
+        "apply_by_default": {
+          "type": "boolean",
+          "description": "false for S3 wording issues: listed, not fixed, unless the person accepts."
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "finder",
+        "verifier",
+        "method"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "finder": {
+          "type": "string",
+          "description": "Reviewer role that proposed it, e.g. 'finder:measurement'."
+        },
+        "verifier": {
+          "type": "string",
+          "description": "Fresh-context agent that confirmed it against ground truth."
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "open",
+        "fixed",
+        "closed",
+        "superseded",
+        "invalidated"
+      ],
+      "description": "AI-side state. open: awaiting response. fixed: review-apply changed the artifact. closed: the person responded without a fix (reason is in feedback.jsonl). superseded: merged into another finding, or into a decision (for a plan, an open choice the person makes) — superseded_by names which. invalidated: its anchor or upstream decision no longer exists."
+    },
+    "superseded_by": {
+      "anyOf": [{ "$ref": "common.schema.json#/$defs/finding_id" }, { "$ref": "common.schema.json#/$defs/decision_id" }]
+    },
+    "caused_by": {
+      "$ref": "common.schema.json#/$defs/finding_id",
+      "description": "Root-cause finding this one follows from (e.g. a wrong sample size caused by a parsing bug). The summary nests it under the root so one problem reads as one problem."
+    },
+    "handoff_reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Set during the AI revise loop when the AI cannot fix this itself (needs data it lacks, or a judgement only the person can make). The loop stops counting it; the page shows the reason."
+    },
+    "note": {
+      "enum": ["suggest", "verify"],
+      "description": "How the page presents an open finding. suggest: worth changing, the author decides (default). verify: a fact must be checked against data, code or a source before the conclusion it affects can stand."
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "common.schema.json#/$defs/record_base"
+    },
+    {
+      "if": {
+        "properties": {
+          "origin": {
+            "const": "inherited"
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "origin_decision"
+            ]
+          },
+          {
+            "required": [
+              "caused_by"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "superseded"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "superseded_by"
+        ]
+      }
+    }
+  ]
+}
